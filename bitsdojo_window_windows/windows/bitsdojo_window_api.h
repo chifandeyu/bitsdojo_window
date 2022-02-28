@@ -17,6 +17,7 @@ namespace bitsdojo_window {
         TSetMinSize setMinSize;
         TSetMaxSize setMaxSize;
         TSetWindowCutOnMaximize setWindowCutOnMaximize;
+        TIsDPIAware isDPIAware;
     } BDWPublicAPI;
 
 }

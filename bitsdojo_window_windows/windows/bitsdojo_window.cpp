@@ -3,12 +3,16 @@
 #include <windowsx.h>
 #include <dwmapi.h>
 #include <math.h>
+#include <iostream>
 #include "./bitsdojo_window_common.h"
 #include "bitsdojo_window.h"
 #include "./window_util.h"
 #include "./include/bitsdojo_window_windows/bitsdojo_window_plugin.h"
 
 namespace bitsdojo_window {
+
+    UINT (*GetDpiForWindow) (HWND) = [] (HWND) { return 96u; };
+    int (*GetSystemMetricsForDpi) (int, UINT) = [] (int nIndex, UINT) { return GetSystemMetrics(nIndex); };
 
     HWND flutter_window = nullptr;
     HWND flutter_child_window = nullptr;
@@ -23,12 +27,14 @@ namespace bitsdojo_window {
     BOOL window_can_be_shown = FALSE;
     BOOL restore_by_moving = FALSE;
     BOOL during_size_move = FALSE;
+    BOOL is_dpi_aware = FALSE;
     BOOL dpi_changed_during_size_move = FALSE;
     SIZE min_size = { 0, 0 };
     SIZE max_size = { 0, 0 };
     // Amount to cut when window is maximized
     int window_cut_on_maximize = 0;
-
+    BOOL is_maximized = FALSE;
+    BOOL is_minimized = FALSE;
     // Forward declarations
     int init();
     void monitorFlutterWindows();
@@ -42,8 +48,24 @@ namespace bitsdojo_window {
     int init()
     {
         is_bitsdojo_window_loaded = true;
+        if (auto user32 = LoadLibraryA("User32.dll"))
+        {
+            if (auto fn = GetProcAddress(user32, "GetDpiForWindow"))
+            {
+                is_dpi_aware = true;
+                GetDpiForWindow = (decltype(GetDpiForWindow)) fn;
+                GetSystemMetricsForDpi = (decltype(GetSystemMetricsForDpi)) GetProcAddress(user32, "GetSystemMetricsForDpi");
+            }
+        }
         monitorFlutterWindows();
         return 1;
+    }
+
+    void uninit() 
+    {
+        if (flutterWindowMonitor && UnhookWindowsHookEx(flutterWindowMonitor)) {
+            flutterWindowMonitor = nullptr;
+        }
     }
 
     int configure(unsigned int flags)
@@ -78,6 +100,11 @@ namespace bitsdojo_window {
         return flutter_window;
     }
 
+    bool isDPIAware()
+    {
+        return is_dpi_aware;
+    }
+    
     LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclassID, DWORD_PTR refData);
     LRESULT CALLBACK child_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclassID, DWORD_PTR refData);
 
@@ -93,12 +120,12 @@ namespace bitsdojo_window {
             {
                 return 0;
             }
-            if (wcscmp(createParams->lpcs->lpszClass, L"FLUTTER_RUNNER_WIN32_WINDOW") == 0)
+            if (createParams->lpcs->lpszName && wcscmp(createParams->lpcs->lpszClass, L"FLUTTER_RUNNER_WIN32_WINDOW") == 0)
             {
                 flutter_window = (HWND)wparam;
                 SetWindowSubclass(flutter_window, main_window_proc, 1, NULL);
             }
-            else if (wcscmp(createParams->lpcs->lpszClass, L"FLUTTERVIEW") == 0)
+            else if (createParams->lpcs->hwndParent && wcscmp(createParams->lpcs->lpszClass, L"FLUTTERVIEW") == 0)
             {
                 flutter_child_window = (HWND)wparam;
                 SetWindowSubclass(flutter_child_window, child_window_proc, 1, NULL);
@@ -106,7 +133,9 @@ namespace bitsdojo_window {
         }
         if ((flutter_window != nullptr) && (flutter_child_window != nullptr))
         {
-            UnhookWindowsHookEx(flutterWindowMonitor);
+            if (flutterWindowMonitor && UnhookWindowsHookEx(flutterWindowMonitor)) {
+                flutterWindowMonitor = nullptr;
+            }
         }
         return 0;
     }
@@ -134,9 +163,9 @@ namespace bitsdojo_window {
 
     int getResizeMargin(HWND window)
     {
-        UINT currentDpi = GetDpiForWindow(window);
-        int resizeBorder = GetSystemMetricsForDpi(SM_CXSIZEFRAME, currentDpi);
-        int borderPadding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, currentDpi);
+        UINT currentDpi = bitsdojo_window::GetDpiForWindow(window);
+        int resizeBorder = bitsdojo_window::GetSystemMetricsForDpi(SM_CXSIZEFRAME, currentDpi);
+        int borderPadding = bitsdojo_window::GetSystemMetricsForDpi(SM_CXPADDEDBORDER, currentDpi);
         bool isMaximized = IsZoomed(window);
         if (isMaximized) {
             return borderPadding;
@@ -258,7 +287,9 @@ namespace bitsdojo_window {
     LRESULT handle_nccalcsize(HWND window, WPARAM wparam, LPARAM lparam)
     {
         auto params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
-        adjustMaximizedSize(window, params->lppos);
+        if(params->lppos){
+            adjustMaximizedSize(window, params->lppos);
+        }
         adjustMaximizedRects(window,params);
 
         auto initialRect = params->rgrc[0];
@@ -437,6 +468,8 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
             extendIntoClientArea(window);
             SetWindowPos(window, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_DRAWFRAME);
         }
+        min_size.cx = createStruct->cx;
+        min_size.cy = createStruct->cy;
         centerOnMonitorContainingMouse(window, createStruct->cx, createStruct->cy);
         if (visible_on_startup == TRUE)
         {
@@ -455,8 +488,20 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
     }
     case WM_SIZE:
     {
+        if(SIZE_MAXIMIZED == wparam){
+            is_maximized = TRUE;
+           std::cout << "==== MAXIMIZED ====" <<std::endl;
+        } else if(SIZE_MINIMIZED == wparam) {
+            is_minimized = TRUE;
+           std::cout << "==== MINIMIZED ====" <<std::endl;
+        } else if(SIZE_RESTORED == wparam && (is_maximized || is_minimized)){
+            is_maximized = FALSE;
+            is_minimized = FALSE;
+           std::cout << "==== RESTORED ====" <<std::endl;
+        }
+
         if (during_minimize == TRUE) {
-                return 0;
+            return 0;
         }
         if (bypass_wm_size == TRUE)
         {
@@ -530,14 +575,14 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
         if ((min_size.cx != 0) && (min_size.cy != 0))
         {
             SIZE minSize = min_size;
-            getSizeOnScreen(&minSize);
+            //getSizeOnScreen(&minSize);
             info->ptMinTrackSize.x = minSize.cx;
             info->ptMinTrackSize.y = minSize.cy;
         }
         if ((max_size.cx != 0) && (max_size.cy != 0))
         {
             SIZE maxSize = max_size;
-            getSizeOnScreen(&maxSize);
+            //getSizeOnScreen(&maxSize);
             info->ptMaxTrackSize.x = maxSize.cx;
             info->ptMaxTrackSize.y = maxSize.cy;
         }

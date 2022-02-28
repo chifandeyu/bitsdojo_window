@@ -13,7 +13,8 @@ namespace bitsdojo_window {
         setWindowCanBeShown,
         setMinSize,
         setMaxSize,
-        setWindowCutOnMaximize
+        setWindowCutOnMaximize,
+        isDPIAware,
     };
 }
 

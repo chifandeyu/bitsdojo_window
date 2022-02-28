@@ -1,3 +1,10 @@
+#2021-02-28
+* Fixed the crash while using the "xinshuru" Input Method
+
+#2021-12-29
+* Fixed part win10 starts null pointer crash
+* Changed win32 api about get dpi for win8 and win7
+
 ## 0.1.0
     - Added null safety support
 ## 0.0.3

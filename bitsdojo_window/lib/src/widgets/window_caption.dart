@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../app_window.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
 class _MoveWindow extends StatelessWidget {
   _MoveWindow({Key? key, this.child, this.onDoubleTap}) : super(key: key);
@@ -25,11 +26,12 @@ class MoveWindow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (child == null) return _MoveWindow(onDoubleTap: this.onDoubleTap);
+    final childWidget = Platform.isMacOS ? Expanded(child: this.child!) : Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [Expanded(child: this.child!)]);
     return _MoveWindow(
       onDoubleTap: this.onDoubleTap,
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [Expanded(child: this.child!)]),
+      child: childWidget,
     );
   }
 }

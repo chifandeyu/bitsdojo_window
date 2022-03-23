@@ -1,3 +1,6 @@
+#2022-03-24
+* Fixed minimum size issue of screen scaling.
+
 #2021-02-28
 * Fixed the crash while using the "xinshuru" Input Method
 

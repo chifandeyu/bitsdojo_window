@@ -3,7 +3,6 @@
 #include <windowsx.h>
 #include <dwmapi.h>
 #include <math.h>
-#include <iostream>
 #include "./bitsdojo_window_common.h"
 #include "bitsdojo_window.h"
 #include "./window_util.h"
@@ -33,8 +32,7 @@ namespace bitsdojo_window {
     SIZE max_size = { 0, 0 };
     // Amount to cut when window is maximized
     int window_cut_on_maximize = 0;
-    BOOL is_maximized = FALSE;
-    BOOL is_minimized = FALSE;
+    UINT current_Dpi = 0;  //当前显示dpi
     // Forward declarations
     int init();
     void monitorFlutterWindows();
@@ -163,9 +161,11 @@ namespace bitsdojo_window {
 
     int getResizeMargin(HWND window)
     {
-        UINT currentDpi = bitsdojo_window::GetDpiForWindow(window);
-        int resizeBorder = bitsdojo_window::GetSystemMetricsForDpi(SM_CXSIZEFRAME, currentDpi);
-        int borderPadding = bitsdojo_window::GetSystemMetricsForDpi(SM_CXPADDEDBORDER, currentDpi);
+        if (0 == current_Dpi) {
+            current_Dpi = bitsdojo_window::GetDpiForWindow(window);
+        }
+        int resizeBorder = bitsdojo_window::GetSystemMetricsForDpi(SM_CXSIZEFRAME, current_Dpi);
+        int borderPadding = bitsdojo_window::GetSystemMetricsForDpi(SM_CXPADDEDBORDER, current_Dpi);
         bool isMaximized = IsZoomed(window);
         if (isMaximized) {
             return borderPadding;
@@ -241,36 +241,42 @@ namespace bitsdojo_window {
         return monitorInfo.rcWork;
     }
 
-    void adjustPositionOnRestoreByMove(HWND window, WINDOWPOS* winPos) {
-        if (restore_by_moving == FALSE) return;
-
-        auto screenRect = getWorkingScreenRectForWindow(window);
-        
+    //窗口顶部超出屏幕上方纠正
+    void adjustPositionOnRestoreByMove(HWND window, WINDOWPOS* winPos, const RECT& screenRect) {
+        //if (restore_by_moving == FALSE) return;
         if (winPos->y < screenRect.top) {
             winPos->y = screenRect.top;
         }
     }
 
-    void adjustMaximizedSize(HWND window, WINDOWPOS* winPos) {
-        auto screenRect = getWorkingScreenRectForWindow(window);
-        if ((winPos->x < screenRect.left) &&
-            (winPos->y < screenRect.top) &&
-            (winPos->cx > (screenRect.right - screenRect.left))
-            && (winPos->cy > (screenRect.bottom - screenRect.top))) {            
-            winPos->x = screenRect.left;
-            winPos->y = screenRect.top;
-            winPos->cx = screenRect.right - screenRect.left;
-            winPos->cy = screenRect.bottom - screenRect.top;
+    //校准最大化窗口大小
+    void adjustMaximizedSize(HWND window, WINDOWPOS* winPos, const RECT& screenRect)
+    {
+        const int screenLeft = screenRect.left;
+        const int screenTop = screenRect.top;
+        const int screenWidth = screenRect.right - screenRect.left;
+        const int screenHeight = screenRect.bottom - screenRect.top;
+
+        if ((winPos->x < screenLeft) &&
+            (winPos->y < screenTop) &&
+            (winPos->cx > screenWidth)
+            && (winPos->cy > screenHeight))
+        {
+            winPos->x = screenLeft;
+            winPos->y = screenTop;
+            winPos->cx = screenWidth;
+            winPos->cy = screenHeight;
         }
     }
 
-    void adjustMaximizedRects(HWND window, NCCALCSIZE_PARAMS* params) {
-        auto screenRect = getWorkingScreenRectForWindow(window);
+    //校准窗口最大化矩形区域
+    void adjustMaximizedRects(HWND window, NCCALCSIZE_PARAMS* params, const RECT& screenRect) {
         for (int i = 0; i < 3; i++) {
             if ((params->rgrc[i].left < screenRect.left) &&
                 (params->rgrc[i].top < screenRect.top) &&
                 (params->rgrc[i].right > screenRect.right) &&
-                (params->rgrc[i].bottom > screenRect.bottom)) {                
+                (params->rgrc[i].bottom > screenRect.bottom))
+            {
                 params->rgrc[i].left = screenRect.left;
                 params->rgrc[i].top = screenRect.top;
                 params->rgrc[i].right = screenRect.right;
@@ -280,17 +286,20 @@ namespace bitsdojo_window {
     }
 
     double getScaleFactor(HWND window) {
-        UINT dpi = GetDpiForWindow(window);
-        return dpi / 96.0;
+        if (0 == current_Dpi) {
+            current_Dpi = GetDpiForWindow(window);
+        }
+        return current_Dpi / 96.0;
     }
 
     LRESULT handle_nccalcsize(HWND window, WPARAM wparam, LPARAM lparam)
     {
         auto params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
+        const auto screenRect = getWorkingScreenRectForWindow(window);
         if(params->lppos){
-            adjustMaximizedSize(window, params->lppos);
+            adjustMaximizedSize(window, params->lppos, screenRect);
         }
-        adjustMaximizedRects(window,params);
+        adjustMaximizedRects(window,params, screenRect);
 
         auto initialRect = params->rgrc[0];
         auto defaultResult = DefSubclassProc(window, WM_NCCALCSIZE, wparam, lparam);
@@ -367,8 +376,10 @@ namespace bitsdojo_window {
 
     void getSizeOnScreen(SIZE* size)
     {
-        UINT dpi = GetDpiForWindow(flutter_window);
-        double scale_factor = dpi / 96.0;
+        if (0 == current_Dpi) {
+            current_Dpi = GetDpiForWindow(flutter_window);
+        }
+        double scale_factor = current_Dpi / 96.0;
         size->cx = static_cast<int>(size->cx * scale_factor);
         size->cy = static_cast<int>(size->cy * scale_factor);
     }
@@ -468,8 +479,6 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
             extendIntoClientArea(window);
             SetWindowPos(window, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_DRAWFRAME);
         }
-        min_size.cx = createStruct->cx;
-        min_size.cy = createStruct->cy;
         centerOnMonitorContainingMouse(window, createStruct->cx, createStruct->cy);
         if (visible_on_startup == TRUE)
         {
@@ -480,6 +489,8 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
     }
     case WM_DPICHANGED:
     {
+        UINT dpi = GetDpiForWindow(flutter_window);
+        current_Dpi = dpi;
         if (during_size_move == TRUE) {
             dpi_changed_during_size_move = TRUE;
         }
@@ -488,18 +499,6 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
     }
     case WM_SIZE:
     {
-        if(SIZE_MAXIMIZED == wparam){
-            is_maximized = TRUE;
-           std::cout << "==== MAXIMIZED ====" <<std::endl;
-        } else if(SIZE_MINIMIZED == wparam) {
-            is_minimized = TRUE;
-           std::cout << "==== MINIMIZED ====" <<std::endl;
-        } else if(SIZE_RESTORED == wparam && (is_maximized || is_minimized)){
-            is_maximized = FALSE;
-            is_minimized = FALSE;
-           std::cout << "==== RESTORED ====" <<std::endl;
-        }
-
         if (during_minimize == TRUE) {
             return 0;
         }
@@ -534,11 +533,12 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
         auto winPos = reinterpret_cast<WINDOWPOS *>(lparam);
         bool isResize = !(winPos->flags & SWP_NOSIZE);
         if (has_custom_frame && isResize) {
-            adjustMaximizedSize(window, winPos);
-            adjustPositionOnRestoreByMove(window, winPos);
+            const auto screenRect = getWorkingScreenRectForWindow(window);
+            adjustMaximizedSize(window, winPos, screenRect);
+            adjustPositionOnRestoreByMove(window, winPos, screenRect);
         }
         BOOL isShowWindow = ((winPos->flags & SWP_SHOWWINDOW) == SWP_SHOWWINDOW);
-        
+
         if ((isShowWindow == TRUE) && (window_can_be_shown == FALSE) && (visible_on_startup == FALSE))
         {
             winPos->flags &= ~SWP_SHOWWINDOW;
@@ -551,9 +551,9 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
         auto winPos = reinterpret_cast<WINDOWPOS*>(lparam);
         bool isResize = !(winPos->flags & SWP_NOSIZE);
         if (has_custom_frame && isResize) {
-            
-            adjustMaximizedSize(window, winPos);
-            adjustPositionOnRestoreByMove(window, winPos);
+            const auto screenRect = getWorkingScreenRectForWindow(window);
+            adjustMaximizedSize(window, winPos, screenRect);
+            adjustPositionOnRestoreByMove(window, winPos, screenRect);
         }
 
         if (false == window_can_be_shown) {
@@ -575,14 +575,14 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
         if ((min_size.cx != 0) && (min_size.cy != 0))
         {
             SIZE minSize = min_size;
-            //getSizeOnScreen(&minSize);
+            getSizeOnScreen(&minSize);
             info->ptMinTrackSize.x = minSize.cx;
             info->ptMinTrackSize.y = minSize.cy;
         }
         if ((max_size.cx != 0) && (max_size.cy != 0))
         {
             SIZE maxSize = max_size;
-            //getSizeOnScreen(&maxSize);
+            getSizeOnScreen(&maxSize);
             info->ptMaxTrackSize.x = maxSize.cx;
             info->ptMaxTrackSize.y = maxSize.cy;
         }

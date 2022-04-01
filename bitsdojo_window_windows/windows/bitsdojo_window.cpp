@@ -243,7 +243,8 @@ namespace bitsdojo_window {
 
     //窗口顶部超出屏幕上方纠正
     void adjustPositionOnRestoreByMove(HWND window, WINDOWPOS* winPos, const RECT& screenRect) {
-        //if (restore_by_moving == FALSE) return;
+        if (restore_by_moving == FALSE) return;
+
         if (winPos->y < screenRect.top) {
             winPos->y = screenRect.top;
         }

@@ -224,6 +224,14 @@ class MacOSWindow extends DesktopWindow {
     }
   }
 
+  bool isFullScreen() {
+    return isFullScreenWindow(handle!);
+  }
+
+  void showFullScreen(bool value) {
+    showFullScreenWindow(handle!, value);
+  }
+
   bool get isMaximized {
     if (!isValidHandle(handle, "get isMaximized")) return false;
     return isWindowMaximized(handle!);
@@ -236,6 +244,22 @@ class MacOSWindow extends DesktopWindow {
 
   void maximizeOrRestore() {
     if (!isValidHandle(handle, "maximizeOrRestore")) return;
+    if (isFullScreen()) return;
     maximizeOrRestoreWindow(handle!);
+  }
+
+  @override
+  void addEventListener(WindowEventCallback callback) {
+    BitsdojoWindowPlatform.instance.addEventListener(callback);
+  }
+
+  @override
+  void removeEventListener(WindowEventCallback callback) {
+    BitsdojoWindowPlatform.instance.removeEventListener(callback);
+  }
+
+  @override
+  void clearEventListener() {
+    BitsdojoWindowPlatform.instance.clearEventListener();
   }
 }

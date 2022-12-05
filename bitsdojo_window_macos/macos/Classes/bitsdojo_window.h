@@ -40,6 +40,12 @@ void setMinSize(NSWindow* window, int width, int height);
 typedef void (*TSetMaxSize)(NSWindow*,int, int);
 void setMaxSize(NSWindow* window, int width, int height);
 
+typedef bool (*TIsFullScreen)(NSWindow*);
+bool isFullScreen(NSWindow* window);
+
+typedef void (*TShowFullScreen)(NSWindow*, bool);
+void showFullScreen(NSWindow* window, bool value);
+
 typedef BDWStatus (*TGetScreenInfoForWindow)(NSWindow*, BDWScreenInfo*);
 BDWStatus getScreenInfoForWindow(NSWindow*, BDWScreenInfo*);
 

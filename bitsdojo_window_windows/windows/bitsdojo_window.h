@@ -26,5 +26,11 @@ namespace bitsdojo_window {
 	
     typedef bool (*TIsDPIAware)();
     bool isDPIAware();
+
+    typedef bool (*TIsFullScreen)();
+    bool isFullScreen();
+
+    typedef void (*TShowFullScreen)(bool);
+    void showFullScreen(bool value);
 }
 #endif

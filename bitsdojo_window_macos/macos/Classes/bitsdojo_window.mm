@@ -76,6 +76,27 @@ void setMaxSize(NSWindow* window, int width, int height){
     });
 }
 
+bool isFullScreen(NSWindow* window){
+    return (([window styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
+}
+
+void showFullScreen(NSWindow* window, bool value) {
+    bool isFull = (([window styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
+    if(value) {
+        if(!isFull) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [window toggleFullScreen:nil];
+            });
+       }
+    } else {
+        if(isFull) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [window toggleFullScreen:nil];
+            });
+        }
+    }
+}
+
 BDWStatus getScreenInfoForWindow(NSWindow* window, BDWScreenInfo *screenInfo){
     auto screen = [window screen];
     auto workingScreenRect = [screen visibleFrame];

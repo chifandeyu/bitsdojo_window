@@ -1,6 +1,20 @@
 import 'dart:ui';
 import 'package:flutter/painting.dart';
 
+enum WindowEventType {
+  unknownType,
+  // 进入全屏
+  enterFullScreen,
+  // 退出全屏
+  leaveFullScreen,
+  // 显示鼠标光标
+  showCursor,
+  // 隐藏鼠标光标
+  hideCursor,
+}
+
+typedef WindowEventCallback = void Function(WindowEventType eventType);
+
 abstract class DesktopWindow {
   DesktopWindow();
   int? get handle;
@@ -35,8 +49,13 @@ abstract class DesktopWindow {
   void maximize();
   void maximizeOrRestore();
   void restore();
-
+  bool isFullScreen();
+  void showFullScreen(bool isFullScreen);
   void startDragging();
+  // Add window event listener for window changed, e.g. enter full screeb, leave full creen.
+  void addEventListener(WindowEventCallback callback);
+  void removeEventListener(WindowEventCallback callback);
+  void clearEventListener();
 
   Size get titleBarButtonSize;
   double get titleBarHeight;

@@ -55,7 +55,7 @@ final _defaultButtonColors = WindowButtonColors(
     iconMouseOver: Color(0xFFFFFFFF),
     iconMouseDown: Color(0xFFF0F0F0));
 
-class WindowButton extends StatelessWidget {
+class WindowButton extends StatefulWidget {
   final WindowButtonBuilder? builder;
   final WindowButtonIconBuilder? iconBuilder;
   late final WindowButtonColors colors;
@@ -75,16 +75,21 @@ class WindowButton extends StatelessWidget {
     this.colors = colors ?? _defaultButtonColors;
   }
 
+  @override
+  _WindowButtonState createState() => _WindowButtonState();
+}
+
+class _WindowButtonState extends State<WindowButton> {
   Color getBackgroundColor(MouseState mouseState) {
-    if (mouseState.isMouseDown) return colors.mouseDown;
-    if (mouseState.isMouseOver) return colors.mouseOver;
-    return colors.normal;
+    if (mouseState.isMouseDown) return widget.colors.mouseDown;
+    if (mouseState.isMouseOver) return widget.colors.mouseOver;
+    return widget.colors.normal;
   }
 
   Color getIconColor(MouseState mouseState) {
-    if (mouseState.isMouseDown) return colors.iconMouseDown;
-    if (mouseState.isMouseOver) return colors.iconMouseOver;
-    return colors.iconNormal;
+    if (mouseState.isMouseDown) return widget.colors.iconMouseDown;
+    if (mouseState.isMouseOver) return widget.colors.iconMouseOver;
+    return widget.colors.iconNormal;
   }
 
   @override
@@ -106,8 +111,8 @@ class WindowButton extends StatelessWidget {
             backgroundColor: getBackgroundColor(mouseState),
             iconColor: getIconColor(mouseState));
 
-        var icon = (this.iconBuilder != null)
-            ? this.iconBuilder!(buttonContext)
+        var icon = (widget.iconBuilder != null)
+            ? widget.iconBuilder!(buttonContext)
             : Container();
         double borderSize = appWindow.borderSize;
         double defaultPadding =
@@ -115,23 +120,24 @@ class WindowButton extends StatelessWidget {
         // Used when buttonContext.backgroundColor is null, allowing the AnimatedContainer to fade-out smoothly.
         var fadeOutColor =
             getBackgroundColor(MouseState()..isMouseOver = true).withOpacity(0);
-        var padding = this.padding ?? EdgeInsets.all(defaultPadding);
-        var animationMs =
-            mouseState.isMouseOver ? (animate ? 100 : 0) : (animate ? 200 : 0);
+        var padding = widget.padding ?? EdgeInsets.all(defaultPadding);
+        var animationMs = mouseState.isMouseOver
+            ? (widget.animate ? 100 : 0)
+            : (widget.animate ? 200 : 0);
         Widget iconWithPadding = Padding(padding: padding, child: icon);
         iconWithPadding = AnimatedContainer(
             curve: Curves.easeOut,
             duration: Duration(milliseconds: animationMs),
             color: buttonContext.backgroundColor ?? fadeOutColor,
             child: iconWithPadding);
-        var button = (this.builder != null)
-            ? this.builder!(buttonContext, icon)
+        var button = (widget.builder != null)
+            ? widget.builder!(buttonContext, icon)
             : iconWithPadding;
         return SizedBox(
             width: buttonSize.width, height: buttonSize.height, child: button);
       },
       onPressed: () {
-        if (this.onPressed != null) this.onPressed!();
+        if (widget.onPressed != null) widget.onPressed!();
       },
     );
   }

@@ -7,7 +7,7 @@
 namespace bitsdojo_window {
 
     typedef struct  _BDWPrivateAPI{
-        TDragAppWindow dragAppWindow;        
+        TDragAppWindow dragAppWindow;
     } BDWPrivateAPI;
 
     typedef struct _BDWPublicAPI {
@@ -18,6 +18,8 @@ namespace bitsdojo_window {
         TSetMaxSize setMaxSize;
         TSetWindowCutOnMaximize setWindowCutOnMaximize;
         TIsDPIAware isDPIAware;
+        TIsFullScreen isFullScreen;
+        TShowFullScreen showFullScreen;
     } BDWPublicAPI;
 
 }

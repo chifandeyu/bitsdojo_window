@@ -106,6 +106,14 @@ class NotImplementedWindow extends DesktopWindow {
     throw UnimplementedError('restore has not been implemented.');
   }
 
+  bool isFullScreen() {
+    throw UnimplementedError('isFullScreen has not been implemented.');
+  }
+
+  void showFullScreen(bool isFullScreen) {
+    throw UnimplementedError('showFullScreen has not been implemented.');
+  }
+
   void startDragging() {
     throw UnimplementedError('startDragging has not been implemented.');
   }
@@ -116,5 +124,20 @@ class NotImplementedWindow extends DesktopWindow {
 
   double get scaleFactor {
     throw UnimplementedError('scaleFactor setter has not been implemented');
+  }
+
+  @override
+  void addEventListener(WindowEventCallback callback) {
+    throw UnimplementedError('addEventListener setter has not been implemented');
+  }
+
+  @override
+  void removeEventListener(WindowEventCallback callback) {
+    throw UnimplementedError('removeEventListener setter has not been implemented');
+  }
+
+  @override
+  void clearEventListener() {
+    throw UnimplementedError('clearEventListener setter has not been implemented');
   }
 }

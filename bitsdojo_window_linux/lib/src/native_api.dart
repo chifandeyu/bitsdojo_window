@@ -60,7 +60,7 @@ final DSetMinSize setMinSize = _theAPI.ref.setMinSize.asFunction();
 // setMaxSize
 typedef Void TSetMaxSize(IntPtr window, Int32 width, Int32 height);
 typedef DSetMaxSize = void Function(int window, int width, int height);
-final DSetMinSize setMaxSize = _theAPI.ref.setMaxSize.asFunction();
+final DSetMaxSize setMaxSize = _theAPI.ref.setMaxSize.asFunction();
 
 // showWindow
 typedef Void TShowWindow(IntPtr window);

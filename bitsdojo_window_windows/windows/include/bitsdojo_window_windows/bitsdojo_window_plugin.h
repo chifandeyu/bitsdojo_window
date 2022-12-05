@@ -12,6 +12,8 @@ void BitsdojoWindowPluginRegisterWithRegistrar(
 
 #define BDW_CUSTOM_FRAME    0x1
 #define BDW_HIDE_ON_STARTUP 0x2
+#define WM_SHOWFULLSCREEN_FLUTTER_WINDOW (WM_USER + 2)
+#define WM_MOUSEMOVE_FLUTTER_WINDOW      (WM_USER + 3)
 
 int bitsdojo_window_configure(unsigned int flags);
 

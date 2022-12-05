@@ -50,4 +50,16 @@ abstract class BitsdojoWindowPlatform extends PlatformInterface {
   void dragAppWindow() async {
     _channelInstance.dragAppWindow();
   }
+
+  void addEventListener(WindowEventCallback callback) {
+    _channelInstance.addEventListener(callback);
+  }
+
+  void removeEventListener(WindowEventCallback callback) {
+    _channelInstance.removeEventListener(callback);
+  }
+
+  void clearEventListener() {
+    _channelInstance.clearEventListener();
+  }
 }

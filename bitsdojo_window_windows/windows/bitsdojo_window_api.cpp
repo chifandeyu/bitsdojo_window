@@ -15,6 +15,8 @@ namespace bitsdojo_window {
         setMaxSize,
         setWindowCutOnMaximize,
         isDPIAware,
+        isFullScreen,
+        showFullScreen,
     };
 }
 

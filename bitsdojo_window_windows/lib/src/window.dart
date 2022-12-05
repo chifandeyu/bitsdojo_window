@@ -1,4 +1,4 @@
-import 'dart:ffi';
+import 'dart:ffi' as ffi;
 import 'dart:ui';
 import 'package:flutter/painting.dart';
 
@@ -23,7 +23,7 @@ bool isValidHandle(int? handle, String operation) {
 
 Rect getScreenRectForWindow(int handle) {
   int monitor = MonitorFromWindow(handle, MONITOR_DEFAULTTONEAREST);
-  final monitorInfo = calloc<MONITORINFO>()..ref.cbSize = sizeOf<MONITORINFO>();
+  final monitorInfo = calloc<MONITORINFO>()..ref.cbSize = ffi.sizeOf<MONITORINFO>();
   final result = GetMonitorInfo(monitor, monitorInfo);
   if (result == TRUE) {
     return Rect.fromLTRB(
@@ -281,11 +281,20 @@ class WinWindow extends WinDesktopWindow {
 
   void maximizeOrRestore() {
     if (!isValidHandle(handle, "maximizeOrRestore")) return;
+    if (isFullScreen()) return;
     if (IsZoomed(handle!) == 1) {
       this.restore();
     } else {
       this.maximize();
     }
+  }
+
+  bool isFullScreen() {
+    return native.isFullScreen();
+  }
+
+  void showFullScreen(bool isFullScreen) {
+    native.showFullScreen(isFullScreen);
   }
 
   set title(String newTitle) {
@@ -295,5 +304,20 @@ class WinWindow extends WinDesktopWindow {
 
   void startDragging() {
     BitsdojoWindowPlatform.instance.dragAppWindow();
+  }
+
+  @override
+  void addEventListener(WindowEventCallback callback) {
+    BitsdojoWindowPlatform.instance.addEventListener(callback);
+  }
+
+  @override
+  void removeEventListener(WindowEventCallback callback) {
+    BitsdojoWindowPlatform.instance.removeEventListener(callback);
+  }
+
+  @override
+  void clearEventListener() {
+    BitsdojoWindowPlatform.instance.clearEventListener();
   }
 }

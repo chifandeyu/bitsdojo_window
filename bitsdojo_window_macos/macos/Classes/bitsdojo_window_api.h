@@ -27,6 +27,8 @@ typedef struct _BDWPublicAPI
     TCloseWindow closeWindow;
     TSetWindowTitle setWindowTitle;
     TGetTitleBarHeight getTitleBarHeight;
+    TIsFullScreen isFullScreen;
+    TShowFullScreen showFullScreen;
 } BDWPublicAPI;
 
 typedef struct _BDWPrivateAPI{

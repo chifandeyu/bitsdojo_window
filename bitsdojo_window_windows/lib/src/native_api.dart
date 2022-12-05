@@ -28,6 +28,19 @@ typedef DIsDPIAware = int Function();
 final DIsDPIAware _isDPIAware = _publicAPI.ref.isDPIAware.asFunction();
 bool isDPIAware() => _isDPIAware() != 0;
 
+// isFullScreen
+typedef Int8 TIsFullScreen();
+typedef DIsFullScreen = int Function();
+final DIsFullScreen _isFullScreen = _publicAPI.ref.isFullScreen.asFunction();
+bool isFullScreen() => _isFullScreen() != 0;
+
+// showFullScreen
+typedef Void TShowFullScreen(Int8 value);
+typedef DShowFullScreen = void Function(int value);
+final DShowFullScreen _showFullScreen =
+    _publicAPI.ref.showFullScreen.asFunction();
+void showFullScreen(bool value) => _showFullScreen(value ? 1 : 0);
+
 // setWindowCanBeShown
 typedef Void TSetWindowCanBeShown(Int8 value);
 typedef DSetWindowCanBeShown = void Function(int value);
@@ -43,7 +56,7 @@ final DSetMinSize setMinSize = _publicAPI.ref.setMinSize.asFunction();
 // setMaxSize
 typedef Void TSetMaxSize(Int32 width, Int32 height);
 typedef DSetMaxSize = void Function(int width, int height);
-final DSetMinSize setMaxSize = _publicAPI.ref.setMaxSize.asFunction();
+final DSetMaxSize setMaxSize = _publicAPI.ref.setMaxSize.asFunction();
 
 // setWindowCutOnMaximize
 typedef Void TSetWindowCutOnMaximize(Int32 width);
@@ -61,6 +74,8 @@ class BDWPublicAPI extends Struct {
   external Pointer<NativeFunction<TSetWindowCutOnMaximize>>
       setWindowCutOnMaximize;
   external Pointer<NativeFunction<TIsDPIAware>> isDPIAware;
+  external Pointer<NativeFunction<TIsFullScreen>> isFullScreen;
+  external Pointer<NativeFunction<TShowFullScreen>> showFullScreen;
 }
 
 class BDWAPI extends Struct {

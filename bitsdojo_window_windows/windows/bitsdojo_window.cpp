@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <dwmapi.h>
+#include <string>
 #include <math.h>
 #include "./bitsdojo_window_common.h"
 #include "bitsdojo_window.h"
@@ -20,6 +21,13 @@ namespace bitsdojo_window {
     BOOL during_minimize = FALSE;
     BOOL during_maximize = FALSE;
     BOOL during_restore = FALSE;
+    bool g_is_window_fullscreen = false;//当前是否为全屏
+    bool g_maximized_before_fullscreen;
+    LONG g_style_before_fullscreen;
+    LONG g_ex_style_before_fullscreen;
+    RECT g_frame_before_fullscreen;
+    std::string g_title_bar_style_before_fullscreen;
+    std::string title_bar_style_ = "normal";
     BOOL bypass_wm_size = FALSE;
     BOOL has_custom_frame = FALSE;
     BOOL visible_on_startup = TRUE;
@@ -102,9 +110,100 @@ namespace bitsdojo_window {
     {
         return is_dpi_aware;
     }
+
+    bool isFullScreen() {
+        return g_is_window_fullscreen;
+    }
     
+    void showFullScreen(bool value) {
+        bool isFullScreen = value;
+        HWND mainWindow = flutter_window;
+        PostMessage(mainWindow, WM_SHOWFULLSCREEN_FLUTTER_WINDOW, WPARAM(isFullScreen), LPARAM());
+    }
+
     LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclassID, DWORD_PTR refData);
     LRESULT CALLBACK child_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR subclassID, DWORD_PTR refData);
+    void handleShowFullScreen(bool isFullScreen);
+
+    void handleShowFullScreen(bool isFullScreen)
+    {
+        HWND mainWindow = flutter_window;
+        // Inspired by how Chromium does this
+        // https://src.chromium.org/viewvc/chrome/trunk/src/ui/views/win/fullscreen_handler.cc?revision=247204&view=markup
+
+        // Save current window state if not already fullscreen.
+        if (!g_is_window_fullscreen) {
+            // Save current window information.
+            g_maximized_before_fullscreen = !!::IsZoomed(mainWindow);
+            g_style_before_fullscreen = GetWindowLong(mainWindow, GWL_STYLE);
+            g_ex_style_before_fullscreen = GetWindowLong(mainWindow, GWL_EXSTYLE);
+            ::GetWindowRect(mainWindow, &g_frame_before_fullscreen);
+            g_title_bar_style_before_fullscreen = title_bar_style_;
+        }
+
+        if (isFullScreen) {
+            //flutter::EncodableMap args2 = flutter::EncodableMap();
+            //args2[flutter::EncodableValue("titleBarStyle")] =
+            //    flutter::EncodableValue("normal");
+            //SetTitleBarStyle(args2);
+
+            // Set new window style and size.
+            ::SetWindowLong(mainWindow, GWL_STYLE,
+                g_style_before_fullscreen & ~(WS_CAPTION));
+            ::SetWindowLong(mainWindow, GWL_EXSTYLE,
+                g_ex_style_before_fullscreen &
+                ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE |
+                    WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
+
+            MONITORINFO monitor_info;
+            monitor_info.cbSize = sizeof(monitor_info);
+            ::GetMonitorInfo(::MonitorFromWindow(mainWindow, MONITOR_DEFAULTTONEAREST),
+                &monitor_info);
+            ::SetWindowPos(mainWindow, NULL, monitor_info.rcMonitor.left,
+                monitor_info.rcMonitor.top,
+                monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
+                monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        }
+        else {
+            ::SetWindowLong(mainWindow, GWL_STYLE, g_style_before_fullscreen);
+            ::SetWindowLong(mainWindow, GWL_EXSTYLE, g_ex_style_before_fullscreen);
+
+            if (title_bar_style_ != g_title_bar_style_before_fullscreen) {
+                //flutter::EncodableMap args2 = flutter::EncodableMap();
+                //args2[flutter::EncodableValue("titleBarStyle")] =
+                //    flutter::EncodableValue(g_title_bar_style_before_fullscreen);
+                //SetTitleBarStyle(args2);
+            }
+
+            if (g_maximized_before_fullscreen) {
+                //flutter::EncodableMap args2 = flutter::EncodableMap();
+                //args2[flutter::EncodableValue("vertically")] =
+                //    flutter::EncodableValue(false);
+                //Maximize(args2);
+                WINDOWPLACEMENT windowPlacement;
+                GetWindowPlacement(mainWindow, &windowPlacement);
+                BOOL bProcMaximize = FALSE;
+                if (windowPlacement.showCmd == SW_MAXIMIZE) {
+                    bProcMaximize = TRUE;
+                    SendMessage(mainWindow, WM_SYSCOMMAND, SC_RESTORE, 0);
+                }
+                if (windowPlacement.showCmd != SW_MAXIMIZE || bProcMaximize) {
+                    PostMessage(mainWindow, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+                }
+            }
+            else {
+                ::SetWindowPos(
+                    mainWindow, NULL, g_frame_before_fullscreen.left,
+                    g_frame_before_fullscreen.top,
+                    g_frame_before_fullscreen.right - g_frame_before_fullscreen.left,
+                    g_frame_before_fullscreen.bottom - g_frame_before_fullscreen.top,
+                    SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+            }
+        }
+
+        g_is_window_fullscreen = isFullScreen;
+    }
 
     LRESULT CALLBACK monitorFlutterWindowsProc(
         _In_ int code,
@@ -295,9 +394,11 @@ namespace bitsdojo_window {
 
     LRESULT handle_nccalcsize(HWND window, WPARAM wparam, LPARAM lparam)
     {
+        //wParam为TRUE时，lParam指向一个NCCALCSIZE_PARAMS结构。该结构包含应用程序可用于计算客户区新的大小和位置的信息。
+        //wParam为FALSE时，lParam指向一个RECT结构。进入时，该结构包含了建议的窗口矩形。返回时，该结构应该包含窗口客户区的屏幕坐标。
         auto params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
         const auto screenRect = getWorkingScreenRectForWindow(window);
-        if(params->lppos){
+        if(wparam && params->lppos){
             adjustMaximizedSize(window, params->lppos, screenRect);
         }
         adjustMaximizedRects(window,params, screenRect);
@@ -362,6 +463,13 @@ namespace bitsdojo_window {
                 }
                 break;
             }
+            case WM_MOUSEMOVE:
+            {
+                if(!isFullScreen())
+                    break;
+                PostMessage(flutter_window, WM_MOUSEMOVE_FLUTTER_WINDOW, WPARAM(0), LPARAM(0));
+            }
+              break;
         }
         return DefSubclassProc(window, message, wparam, lparam);
     }
@@ -595,7 +703,7 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
         during_size_move = TRUE;
         if (isMaximized) {
             restore_by_moving = TRUE;
-        }        
+        }
         break;
     }
     case WM_EXITSIZEMOVE:
@@ -613,6 +721,12 @@ LRESULT CALLBACK main_window_proc(HWND window, UINT message, WPARAM wparam, LPAR
         handle_bdw_action(window, wparam, lparam);        
         break;
     }
+    case WM_SHOWFULLSCREEN_FLUTTER_WINDOW:
+    {
+        bool isFullScreen = (bool)wparam;
+        handleShowFullScreen(isFullScreen);
+    }
+      break;
     default:
         break;
     }
@@ -623,6 +737,9 @@ bool dragAppWindow()
 {
     if (flutter_window == nullptr)
     {
+        return false;
+    }
+    if (g_is_window_fullscreen) {
         return false;
     }
     ReleaseCapture();

@@ -1,3 +1,6 @@
+#2022-12-05
+* Support fullscreen show
+
 #2022-03-24
 * Fixed minimum size issue of screen scaling.
 

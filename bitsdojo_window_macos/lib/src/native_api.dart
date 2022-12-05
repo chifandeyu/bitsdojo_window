@@ -63,7 +63,24 @@ final DSetMinSize setMinSize = _publicAPI.ref.setMinSize.asFunction();
 // setMaxSize
 typedef Void TSetMaxSize(IntPtr window, Int32 first, Int32 second);
 typedef DSetMaxSize = void Function(int window, int first, int second);
-final DSetMinSize setMaxSize = _publicAPI.ref.setMaxSize.asFunction();
+final DSetMaxSize setMaxSize = _publicAPI.ref.setMaxSize.asFunction();
+
+// isFullScreen
+typedef Bool TIsFullScreen(IntPtr window);
+typedef DIsFullScreen = bool Function(int window);
+final DIsFullScreen _isFullScreen = _publicAPI.ref.isFullScreen.asFunction();
+bool isFullScreenWindow(int window) =>
+    _isFullScreen(window) == 1 ? true : false;
+
+// showFullScreen
+// this's native function type
+typedef Void TShowFullScreen(IntPtr window, Int8 value);
+// this's dart function type
+typedef DShowFullScreen = void Function(int window, int value);
+final DShowFullScreen _showFullScreen =
+    _publicAPI.ref.showFullScreen.asFunction();
+void showFullScreenWindow(int window, bool value) =>
+    _showFullScreen(window, value ? 1 : 0);
 
 // getScreenInfoForWindow
 typedef Int8 TGetScreenInfoForWindow(
@@ -187,6 +204,8 @@ class BDWPublicAPI extends Struct {
   external Pointer<NativeFunction<TCloseWindow>> closeWindow;
   external Pointer<NativeFunction<TSetWindowTitle>> setWindowTitle;
   external Pointer<NativeFunction<TGetTitleBarHeight>> getTitleBarHeight;
+  external Pointer<NativeFunction<TIsFullScreen>> isFullScreen;
+  external Pointer<NativeFunction<TShowFullScreen>> showFullScreen;
 }
 
 class BDWAPI extends Struct {
